@@ -1,7 +1,10 @@
-// Ganti dengan URL dan API KEY milik kamu
+// ======= app.js =======
+
 const SUPABASE_URL = 'https://ejpdrxpvdvdzrlvepixs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGRyeHB2ZHZkenJsdmVwaXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0MzEwMjEsImV4cCI6MjA2NzAwNzAyMX0.iCj-Glpi3aLdkXtx7sWxgCMtWGCoJMGrbiUi4Z9bKec';
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentCoords = { lat: null, lon: null };
 
 function showAbsen() {
   const html = `
@@ -15,7 +18,7 @@ function showAbsen() {
     </select>
     <input type="text" id="nama" placeholder="Nama Anda" />
     <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto()" />
-    <img id="preview" src="" alt="Preview" style="display:none; max-width:200px; margin-top:10px;" />
+    <img id="preview" src="" alt="Preview" />
     <div id="map" class="map"></div>
     <button onclick="submitAbsen()">Kirim</button>
   `;
@@ -28,7 +31,6 @@ function showAbsen() {
   getLocation(true);
 }
 
-let currentCoords = { lat: null, lon: null };
 function getLocation(showMap = false) {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(pos => {
@@ -38,7 +40,6 @@ function getLocation(showMap = false) {
         setTimeout(() => {
           const mapEl = document.getElementById('map');
           if (!mapEl) return;
-
           const map = L.map('map').setView([currentCoords.lat, currentCoords.lon], 16);
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
           L.marker([currentCoords.lat, currentCoords.lon]).addTo(map).bindPopup('Lokasi Anda').openPopup();
