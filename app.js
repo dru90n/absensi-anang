@@ -1,6 +1,6 @@
 // Ganti dengan URL dan API KEY milik kamu
-const SUPABASE_URL = 'https://ejpdrxpvdvdzrlvepixs.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGRyeHB2ZHZkenJsdmVwaXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0MzEwMjEsImV4cCI6MjA2NzAwNzAyMX0.iCj-Glpi3aLdkXtx7sWxgCMtWGCoJMGrbiUi4Z9bKec';
+const SUPABASE_URL = 'https://zbunmfsedqalvvadwgkk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpidW5tZnNlZHFhbHZ2YWR3Z2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyNjE2NTUsImV4cCI6MjA2NjgzNzY1NX0.wUEGv5FavNSQT3iNlo6WnW_d3TcDVxRTx8sI6xD-wxQ';
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 function showAbsen() {
@@ -14,7 +14,7 @@ function showAbsen() {
       <option value="Sales">Sales</option>
     </select>
     <input type="text" id="nama" placeholder="Nama Anda" />
-    <input type="file" id="foto" accept="image/*" capture="user" />
+    <input type="file" id="foto" accept="image/*" capture="environment" />
     <div id="map" class="map"></div>
     <button onclick="submitAbsen()">Kirim</button>
   `;
@@ -24,18 +24,20 @@ function showAbsen() {
   document.getElementById('tanggal').value = now.toISOString().split('T')[0];
   document.getElementById('jam').value = now.toTimeString().split(' ')[0];
 
-  getLocation();
+  getLocation(true);
 }
 
 let currentCoords = { lat: null, lon: null };
-function getLocation() {
+function getLocation(showMap = false) {
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(pos => {
       currentCoords.lat = pos.coords.latitude;
       currentCoords.lon = pos.coords.longitude;
-      const map = L.map('map').setView([currentCoords.lat, currentCoords.lon], 16);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-      L.marker([currentCoords.lat, currentCoords.lon]).addTo(map).bindPopup('Lokasi Anda').openPopup();
+      if (showMap) {
+        const map = L.map('map').setView([currentCoords.lat, currentCoords.lon], 16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        L.marker([currentCoords.lat, currentCoords.lon]).addTo(map).bindPopup('Lokasi Anda').openPopup();
+      }
     }, err => alert('Gagal ambil lokasi: ' + err.message));
   } else {
     alert('Browser tidak mendukung GPS');
