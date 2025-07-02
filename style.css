@@ -1,0 +1,42 @@
+body {
+  font-family: sans-serif;
+  padding: 20px;
+}
+
+input, select {
+  display: block;
+  margin: 8px 0;
+  padding: 5px;
+  width: 100%;
+  max-width: 400px;
+}
+
+button {
+  padding: 10px 20px;
+  margin-top: 10px;
+}
+
+img#preview {
+  max-width: 200px;
+  display: none;
+  margin-top: 10px;
+}
+
+.map {
+  height: 250px;
+  margin-top: 10px;
+  border: 1px solid #ccc;
+}
+
+table {
+  border-collapse: collapse;
+  margin-top: 20px;
+  width: 100%;
+  max-width: 800px;
+}
+
+th, td {
+  border: 1px solid #aaa;
+  padding: 6px 8px;
+  text-align: left;
+}
