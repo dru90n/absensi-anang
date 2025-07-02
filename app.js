@@ -67,11 +67,6 @@ function previewFoto() {
 }
 
 async function submitAbsen() {
-  if (!currentCoords.lat || !currentCoords.lon) {
-    alert("Lokasi belum terdeteksi. Mohon tunggu sebentar dan pastikan GPS aktif.");
-    return;
-  }
-
   const tanggal = document.getElementById('tanggal').value;
   const jam = document.getElementById('jam').value;
   const jabatan = document.getElementById('jabatan').value;
@@ -85,10 +80,13 @@ async function submitAbsen() {
 
   const fileExt = fotoFile.name.split('.').pop();
   const fileName = `${Date.now()}.${fileExt}`;
-  const folder = tanggal; // folder per tanggal
+  const folder = tanggal; // Format: 2025-07-02
   const filePath = `${folder}/${fileName}`;
 
-  const { error: uploadError } = await supabase.storage.from('foto-absen').upload(filePath, fotoFile);
+  const { error: uploadError } = await supabase.storage
+    .from('foto-absen')
+    .upload(filePath, fotoFile);
+
   if (uploadError) {
     console.error(uploadError);
     alert("Gagal upload foto.");
@@ -102,16 +100,18 @@ async function submitAbsen() {
     nama,
     lat: currentCoords.lat,
     lon: currentCoords.lon,
-    foto_url: filePath
+    foto_url: filePath,
   }]);
 
   if (insertError) {
-    alert("Gagal menyimpan absensi.");
+    alert("Gagal menyimpan data absensi.");
+    console.error(insertError);
   } else {
     alert("Absen berhasil!");
-    showAbsen();
+    showAbsen(); // Reset form
   }
 }
+
 
 function showTarikData() {
   const html = `
