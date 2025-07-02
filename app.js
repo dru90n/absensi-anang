@@ -33,16 +33,23 @@ function getLocation(showMap = false) {
     navigator.geolocation.getCurrentPosition(pos => {
       currentCoords.lat = pos.coords.latitude;
       currentCoords.lon = pos.coords.longitude;
+
       if (showMap) {
-        const map = L.map('map').setView([currentCoords.lat, currentCoords.lon], 16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        L.marker([currentCoords.lat, currentCoords.lon]).addTo(map).bindPopup('Lokasi Anda').openPopup();
+        setTimeout(() => {
+          const mapEl = document.getElementById('map');
+          if (!mapEl) return;
+
+          const map = L.map('map').setView([currentCoords.lat, currentCoords.lon], 16);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+          L.marker([currentCoords.lat, currentCoords.lon]).addTo(map).bindPopup('Lokasi Anda').openPopup();
+        }, 300); // delay 300ms untuk pastikan elemen muncul
       }
     }, err => alert('Gagal ambil lokasi: ' + err.message));
   } else {
     alert('Browser tidak mendukung GPS');
   }
 }
+
 
 async function submitAbsen() {
   const tanggal = document.getElementById('tanggal').value;
