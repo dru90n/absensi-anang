@@ -1,10 +1,12 @@
 // ===== app.js =====
 
+// Inisialisasi Supabase
 const SUPABASE_URL = 'https://ejpdrxpvdvdzrlvepixs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGRyeHB2ZHZkenJsdmVwaXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0MzEwMjEsImV4cCI6MjA2NzAwNzAyMX0.iCj-Glpi3aLdkXtx7sWxgCMtWGCoJMGrbiUi4Z9bKec';
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentCoords = { lat: null, lon: null };
+// Koordinat global (penting: jangan gunakan let di dalam fungsi!)
+var currentCoords = { lat: null, lon: null };
 
 function showAbsen() {
   const html = `
@@ -47,6 +49,8 @@ function getLocation(showMap = false) {
             .bindPopup('Lokasi Anda').openPopup();
         }, 500);
       }
+    }, () => {
+      alert("Gagal mengambil lokasi.");
     });
   } else {
     alert("Geolocation tidak didukung browser Anda.");
@@ -66,19 +70,14 @@ function previewFoto() {
 }
 
 async function submitAbsen() {
-  if (!currentCoords.lat || !currentCoords.lon) {
-    alert("Lokasi belum terdeteksi. Mohon tunggu sebentar dan pastikan GPS aktif.");
-    return;
-  }
-
   const tanggal = document.getElementById('tanggal').value;
   const jam = document.getElementById('jam').value;
   const jabatan = document.getElementById('jabatan').value;
   const nama = document.getElementById('nama').value;
   const fotoFile = document.getElementById('foto').files[0];
 
-  if (!jabatan || !nama || !fotoFile) {
-    alert("Semua field wajib diisi.");
+  if (!jabatan || !nama || !fotoFile || !currentCoords.lat || !currentCoords.lon) {
+    alert("Semua field wajib diisi dan lokasi harus aktif.");
     return;
   }
 
@@ -110,71 +109,70 @@ async function submitAbsen() {
   }
 }
 
+// Tambahkan kembali fitur Tarik Data
 function showTarikData() {
   const html = `
     <h3>Tarik Data Absensi</h3>
-    <input type="password" id="adminpass" placeholder="Masukkan Password" />
-    <input type="month" id="bulan" />
-    <button onclick="tarikData()">Tampilkan</button>
-    <div id="tabel"></div>
+    <input type="password" id="admin-pass" placeholder="Masukkan Password" />
+    <button onclick="loadTarikData()">Lihat Data</button>
+    <div id="data-section"></div>
   `;
   document.getElementById('content').innerHTML = html;
 }
 
-async function tarikData() {
-  const password = document.getElementById('adminpass').value;
-  const bulan = document.getElementById('bulan').value;
-
-  if (password !== 'admin123') {
-    alert("Password salah");
+async function loadTarikData() {
+  const pass = document.getElementById('admin-pass').value;
+  if (pass !== 'admin123') {
+    alert("Password salah.");
     return;
   }
 
-  const [year, month] = bulan.split('-');
-  const start = `${year}-${month}-01`;
-  const end = `${year}-${month}-31`;
-
-  const { data, error } = await supabase
-    .from('absensi')
-    .select('*')
-    .gte('tanggal', start)
-    .lte('tanggal', end)
-    .order('tanggal', { ascending: true });
+  const { data, error } = await supabase.from('absensi').select('*').order('tanggal', { ascending: false });
 
   if (error) {
-    alert("Gagal tarik data");
+    alert("Gagal mengambil data.");
     return;
   }
 
-  let table = `<table border="1"><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>`;
+  let html = `<table border="1" cellpadding="4"><tr>
+    <th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th>
+  </tr>`;
+
   data.forEach(row => {
-    table += `<tr>
+    html += `<tr>
       <td>${row.tanggal}</td>
       <td>${row.jam}</td>
       <td>${row.jabatan}</td>
       <td>${row.nama}</td>
       <td>${row.lat}</td>
       <td>${row.lon}</td>
-      <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/absensi-foto/${row.foto_url}" target="_blank">Lihat</a></td>
+      <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/absensi-foto/${row.foto_url}" target="_blank">Lihat Foto</a></td>
     </tr>`;
   });
-  table += '</table><br><button onclick="exportToExcel()">Export ke Excel</button>';
 
-  document.getElementById('tabel').innerHTML = table;
+  html += `</table><br><button onclick="exportToCSV()">Export ke CSV</button>`;
+
+  document.getElementById('data-section').innerHTML = html;
 }
 
-function exportToExcel() {
-  const table = document.querySelector('#tabel table');
-  const rows = Array.from(table.querySelectorAll('tr')).map(row =>
-    Array.from(row.querySelectorAll('th, td')).map(cell => cell.innerText)
-  );
+function exportToCSV() {
+  const table = document.querySelector("#data-section table");
+  if (!table) return;
 
-  let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", "data_absensi.csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  let csv = [];
+  const rows = table.querySelectorAll("tr");
+  for (let row of rows) {
+    const cols = row.querySelectorAll("td, th");
+    const rowData = [...cols].map(col => `"${col.innerText}"`).join(",");
+    csv.push(rowData);
+  }
+
+  const csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(csvFile);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "absensi.csv";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
