@@ -85,7 +85,7 @@ async function submitAbsen() {
   const fileName = `${Date.now()}.${fileExt}`;
   const filePath = `foto/${fileName}`;
 
-  const { error: uploadError } = await supabase.storage.from('absensi-foto').upload(filePath, fotoFile);
+  const { error: uploadError } = await supabase.storage.from('foto-absen').upload(filePath, fotoFile);
   if (uploadError) {
     alert("Gagal upload foto.");
     return;
@@ -107,4 +107,65 @@ async function submitAbsen() {
     alert("Absen berhasil!");
     showAbsen();
   }
+}
+
+function showTarikData() {
+  const html = `
+    <h3>Tarik Data Absensi</h3>
+    <input type="password" id="tarikPass" placeholder="Masukkan Password" />
+    <input type="date" id="startDate" />
+    <input type="date" id="endDate" />
+    <button onclick="loadData()">Tarik Data</button>
+    <div id="result"></div>
+  `;
+  document.getElementById('content').innerHTML = html;
+}
+
+async function loadData() {
+  const pass = document.getElementById('tarikPass').value;
+  if (pass !== 'default123') {
+    alert("Password salah!");
+    return;
+  }
+  const start = document.getElementById('startDate').value;
+  const end = document.getElementById('endDate').value;
+
+  let { data, error } = await supabase
+    .from('absensi')
+    .select('*')
+    .gte('tanggal', start)
+    .lte('tanggal', end);
+
+  if (error) {
+    alert("Gagal menarik data");
+    return;
+  }
+
+  let table = `<table border='1'><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>`;
+  data.forEach(row => {
+    const url = supabase.storage.from('foto-absen').getPublicUrl(row.foto_url).data.publicUrl;
+    table += `<tr>
+      <td>${row.tanggal}</td>
+      <td>${row.jam}</td>
+      <td>${row.jabatan}</td>
+      <td>${row.nama}</td>
+      <td>${row.lat}</td>
+      <td>${row.lon}</td>
+      <td><a href="${url}" target="_blank">Lihat Foto</a></td>
+    </tr>`;
+  });
+  table += '</table>';
+  table += `<button onclick="exportTableToExcel('result')">Export ke Excel</button>`;
+
+  document.getElementById('result').innerHTML = table;
+}
+
+function exportTableToExcel(elId) {
+  const table = document.getElementById(elId).innerHTML;
+  const html = `<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body>${table}</body></html>`;
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'absensi.xls';
+  a.click();
 }
