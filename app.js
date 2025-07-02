@@ -1,4 +1,4 @@
-// ======= app.js =======
+// ===== app.js =====
 
 const SUPABASE_URL = 'https://ejpdrxpvdvdzrlvepixs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGRyeHB2ZHZkenJsdmVwaXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0MzEwMjEsImV4cCI6MjA2NzAwNzAyMX0.iCj-Glpi3aLdkXtx7sWxgCMtWGCoJMGrbiUi4Z9bKec';
@@ -18,8 +18,8 @@ function showAbsen() {
     </select>
     <input type="text" id="nama" placeholder="Nama Anda" />
     <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto()" />
-    <img id="preview" src="" alt="Preview" />
-    <div id="map" class="map"></div>
+    <img id="preview" src="" alt="Preview" style="max-width: 100px; display:block;" />
+    <div id="map" style="height: 200px;"></div>
     <button onclick="submitAbsen()">Kirim</button>
   `;
   document.getElementById('content').innerHTML = html;
@@ -36,111 +36,76 @@ function getLocation(showMap = false) {
     navigator.geolocation.getCurrentPosition(pos => {
       currentCoords.lat = pos.coords.latitude;
       currentCoords.lon = pos.coords.longitude;
+
       if (showMap) {
         setTimeout(() => {
           const mapEl = document.getElementById('map');
           if (!mapEl) return;
           const map = L.map('map').setView([currentCoords.lat, currentCoords.lon], 16);
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-          L.marker([currentCoords.lat, currentCoords.lon]).addTo(map).bindPopup('Lokasi Anda').openPopup();
-        }, 300);
+          L.marker([currentCoords.lat, currentCoords.lon]).addTo(map)
+            .bindPopup('Lokasi Anda').openPopup();
+        }, 500);
       }
-    }, err => alert('Gagal ambil lokasi: ' + err.message));
+    });
   } else {
-    alert('Browser tidak mendukung GPS');
+    alert("Geolocation tidak didukung browser Anda.");
   }
 }
 
 function previewFoto() {
   const file = document.getElementById('foto').files[0];
+  const preview = document.getElementById('preview');
   if (file) {
     const reader = new FileReader();
-    reader.onload = function(e) {
-      const img = document.getElementById('preview');
-      img.src = e.target.result;
-      img.style.display = 'block';
-    }
+    reader.onload = () => {
+      preview.src = reader.result;
+    };
     reader.readAsDataURL(file);
   }
 }
 
 async function submitAbsen() {
+  if (!currentCoords.lat || !currentCoords.lon) {
+    alert("Lokasi belum terdeteksi. Mohon tunggu sebentar dan pastikan GPS aktif.");
+    return;
+  }
+
   const tanggal = document.getElementById('tanggal').value;
   const jam = document.getElementById('jam').value;
   const jabatan = document.getElementById('jabatan').value;
   const nama = document.getElementById('nama').value;
-  const foto = document.getElementById('foto').files[0];
+  const fotoFile = document.getElementById('foto').files[0];
 
-  if (!jabatan || !nama || !foto || !currentCoords.lat) return alert('Lengkapi semua data!');
+  if (!jabatan || !nama || !fotoFile) {
+    alert("Semua field wajib diisi.");
+    return;
+  }
 
-  const fileExt = foto.name.split('.').pop();
-  const fileName = `${nama}_${Date.now()}.${fileExt}`;
-  const filePath = `${fileName}`;
+  const fileExt = fotoFile.name.split('.').pop();
+  const fileName = `${Date.now()}.${fileExt}`;
+  const filePath = `foto/${fileName}`;
 
-  const { error: uploadError } = await supabase.storage.from('foto-absen').upload(filePath, foto);
-  if (uploadError) return alert('Gagal upload foto: ' + uploadError.message);
+  const { error: uploadError } = await supabase.storage.from('absensi-foto').upload(filePath, fotoFile);
+  if (uploadError) {
+    alert("Gagal upload foto.");
+    return;
+  }
 
-  const { data: urlData } = supabase.storage.from('foto-absen').getPublicUrl(filePath);
-  const foto_url = urlData.publicUrl;
-
-  const { error } = await supabase.from('absensi').insert([{
-    tanggal, jam, jabatan, nama,
-    latitude: currentCoords.lat,
-    longitude: currentCoords.lon,
-    foto_url
+  const { error: insertError } = await supabase.from('absensi').insert([{
+    tanggal,
+    jam,
+    jabatan,
+    nama,
+    lat: currentCoords.lat,
+    lon: currentCoords.lon,
+    foto_url: filePath
   }]);
-  if (error) alert('Gagal simpan absen: ' + error.message);
-  else alert('Absen berhasil disimpan!');
-}
 
-function showTarikData() {
-  const html = `
-    <h3>Tarik Data Absensi</h3>
-    <input type="password" id="password" placeholder="Masukkan Password" />
-    <input type="month" id="bulan" />
-    <button onclick="tarikData()">Tarik Data</button>
-    <div id="data"></div>
-  `;
-  document.getElementById('content').innerHTML = html;
-}
-
-async function tarikData() {
-  const pass = document.getElementById('password').value;
-  if (pass !== 'admin123') return alert('Password salah!');
-  const bulan = document.getElementById('bulan').value;
-  if (!bulan) return alert('Pilih bulan dulu.');
-
-  const awal = `${bulan}-01`;
-  const akhir = `${bulan}-31`;
-
-  const { data, error } = await supabase.from('absensi')
-    .select('*')
-    .gte('tanggal', awal).lte('tanggal', akhir);
-
-  if (error) return alert('Gagal tarik data: ' + error.message);
-
-  let html = `<table id="tabel"><thead><tr>
-    <th>No</th><th>Tanggal</th><th>Jam</th><th>Nama</th><th>Jabatan</th><th>Koordinat</th><th>Foto</th>
-  </tr></thead><tbody>`;
-  data.forEach((d, i) => {
-    html += `<tr>
-      <td>${i+1}</td><td>${d.tanggal}</td><td>${d.jam}</td><td>${d.nama}</td>
-      <td>${d.jabatan}</td><td>${d.latitude},${d.longitude}</td>
-      <td><a href="${d.foto_url}" target="_blank">Lihat</a></td>
-    </tr>`;
-  });
-  html += '</tbody></table>';
-  html += '<br><button onclick="exportToExcel()">Export ke XLS</button>';
-  document.getElementById('data').innerHTML = html;
-}
-
-function exportToExcel() {
-  const table = document.getElementById("tabel").outerHTML;
-  const blob = new Blob(["\ufeff" + table], { type: "application/vnd.ms-excel" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = "absensi.xls";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  if (insertError) {
+    alert("Gagal menyimpan absensi.");
+  } else {
+    alert("Absen berhasil!");
+    showAbsen();
+  }
 }
