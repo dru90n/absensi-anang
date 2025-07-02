@@ -3,10 +3,10 @@
 // Inisialisasi Supabase
 const SUPABASE_URL = 'https://ejpdrxpvdvdzrlvepixs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGRyeHB2ZHZkenJsdmVwaXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0MzEwMjEsImV4cCI6MjA2NzAwNzAyMX0.iCj-Glpi3aLdkXtx7sWxgCMtWGCoJMGrbiUi4Z9bKec';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Koordinat global (penting: jangan gunakan let di dalam fungsi!)
-var currentCoords = { lat: null, lon: null };
+// Variabel global lokasi
+let currentCoords = { lat: null, lon: null };
 
 function showAbsen() {
   const html = `
@@ -107,72 +107,4 @@ async function submitAbsen() {
     alert("Absen berhasil!");
     showAbsen();
   }
-}
-
-// Tambahkan kembali fitur Tarik Data
-function showTarikData() {
-  const html = `
-    <h3>Tarik Data Absensi</h3>
-    <input type="password" id="admin-pass" placeholder="Masukkan Password" />
-    <button onclick="loadTarikData()">Lihat Data</button>
-    <div id="data-section"></div>
-  `;
-  document.getElementById('content').innerHTML = html;
-}
-
-async function loadTarikData() {
-  const pass = document.getElementById('admin-pass').value;
-  if (pass !== 'admin123') {
-    alert("Password salah.");
-    return;
-  }
-
-  const { data, error } = await supabase.from('absensi').select('*').order('tanggal', { ascending: false });
-
-  if (error) {
-    alert("Gagal mengambil data.");
-    return;
-  }
-
-  let html = `<table border="1" cellpadding="4"><tr>
-    <th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th>
-  </tr>`;
-
-  data.forEach(row => {
-    html += `<tr>
-      <td>${row.tanggal}</td>
-      <td>${row.jam}</td>
-      <td>${row.jabatan}</td>
-      <td>${row.nama}</td>
-      <td>${row.lat}</td>
-      <td>${row.lon}</td>
-      <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/absensi-foto/${row.foto_url}" target="_blank">Lihat Foto</a></td>
-    </tr>`;
-  });
-
-  html += `</table><br><button onclick="exportToCSV()">Export ke CSV</button>`;
-
-  document.getElementById('data-section').innerHTML = html;
-}
-
-function exportToCSV() {
-  const table = document.querySelector("#data-section table");
-  if (!table) return;
-
-  let csv = [];
-  const rows = table.querySelectorAll("tr");
-  for (let row of rows) {
-    const cols = row.querySelectorAll("td, th");
-    const rowData = [...cols].map(col => `"${col.innerText}"`).join(",");
-    csv.push(rowData);
-  }
-
-  const csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
-  const url = URL.createObjectURL(csvFile);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "absensi.csv";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
 }
