@@ -83,7 +83,9 @@ async function submitAbsen() {
 
   const fileExt = fotoFile.name.split('.').pop();
   const fileName = `${Date.now()}.${fileExt}`;
-  const filePath = `foto/${fileName}`;
+  const folderDate = new Date().toISOString().split('T')[0]; // hasilnya misalnya "2025-07-02"
+  const folder = tanggal;  // YYYY-MM-DD
+  const filePath = `${folder}/${fileName}`;
 
   const { error: uploadError } = await supabase.storage.from('foto-absen').upload(filePath, fotoFile);
   if (uploadError) {
