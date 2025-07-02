@@ -14,7 +14,8 @@ function showAbsen() {
       <option value="Sales">Sales</option>
     </select>
     <input type="text" id="nama" placeholder="Nama Anda" />
-    <input type="file" id="foto" accept="image/*" capture="environment" />
+    <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto()" />
+    <img id="preview" src="" alt="Preview" style="display:none; max-width:200px; margin-top:10px;" />
     <div id="map" class="map"></div>
     <button onclick="submitAbsen()">Kirim</button>
   `;
@@ -33,7 +34,6 @@ function getLocation(showMap = false) {
     navigator.geolocation.getCurrentPosition(pos => {
       currentCoords.lat = pos.coords.latitude;
       currentCoords.lon = pos.coords.longitude;
-
       if (showMap) {
         setTimeout(() => {
           const mapEl = document.getElementById('map');
@@ -42,7 +42,7 @@ function getLocation(showMap = false) {
           const map = L.map('map').setView([currentCoords.lat, currentCoords.lon], 16);
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
           L.marker([currentCoords.lat, currentCoords.lon]).addTo(map).bindPopup('Lokasi Anda').openPopup();
-        }, 300); // delay 300ms untuk pastikan elemen muncul
+        }, 300);
       }
     }, err => alert('Gagal ambil lokasi: ' + err.message));
   } else {
@@ -50,6 +50,18 @@ function getLocation(showMap = false) {
   }
 }
 
+function previewFoto() {
+  const file = document.getElementById('foto').files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = document.getElementById('preview');
+      img.src = e.target.result;
+      img.style.display = 'block';
+    }
+    reader.readAsDataURL(file);
+  }
+}
 
 async function submitAbsen() {
   const tanggal = document.getElementById('tanggal').value;
