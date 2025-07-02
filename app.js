@@ -1,11 +1,9 @@
 // ===== app.js =====
 
-// Inisialisasi Supabase
 const SUPABASE_URL = 'https://ejpdrxpvdvdzrlvepixs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGRyeHB2ZHZkenJsdmVwaXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0MzEwMjEsImV4cCI6MjA2NzAwNzAyMX0.iCj-Glpi3aLdkXtx7sWxgCMtWGCoJMGrbiUi4Z9bKec';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Variabel global lokasi
 let currentCoords = { lat: null, lon: null };
 
 function showAbsen() {
@@ -27,7 +25,8 @@ function showAbsen() {
   document.getElementById('content').innerHTML = html;
 
   const now = new Date();
-  document.getElementById('tanggal').value = now.toISOString().split('T')[0];
+  const tanggalStr = now.toISOString().split('T')[0];
+  document.getElementById('tanggal').value = tanggalStr;
   document.getElementById('jam').value = now.toTimeString().split(' ')[0];
 
   getLocation(true);
@@ -49,8 +48,6 @@ function getLocation(showMap = false) {
             .bindPopup('Lokasi Anda').openPopup();
         }, 500);
       }
-    }, () => {
-      alert("Gagal mengambil lokasi.");
     });
   } else {
     alert("Geolocation tidak didukung browser Anda.");
@@ -70,25 +67,30 @@ function previewFoto() {
 }
 
 async function submitAbsen() {
+  if (!currentCoords.lat || !currentCoords.lon) {
+    alert("Lokasi belum terdeteksi. Mohon tunggu sebentar dan pastikan GPS aktif.");
+    return;
+  }
+
   const tanggal = document.getElementById('tanggal').value;
   const jam = document.getElementById('jam').value;
   const jabatan = document.getElementById('jabatan').value;
   const nama = document.getElementById('nama').value;
   const fotoFile = document.getElementById('foto').files[0];
 
-  if (!jabatan || !nama || !fotoFile || !currentCoords.lat || !currentCoords.lon) {
-    alert("Semua field wajib diisi dan lokasi harus aktif.");
+  if (!jabatan || !nama || !fotoFile) {
+    alert("Semua field wajib diisi.");
     return;
   }
 
   const fileExt = fotoFile.name.split('.').pop();
   const fileName = `${Date.now()}.${fileExt}`;
-  const folderDate = new Date().toISOString().split('T')[0]; // hasilnya misalnya "2025-07-02"
-  const folder = tanggal;  // YYYY-MM-DD
+  const folder = tanggal; // folder per tanggal
   const filePath = `${folder}/${fileName}`;
 
   const { error: uploadError } = await supabase.storage.from('foto-absen').upload(filePath, fotoFile);
   if (uploadError) {
+    console.error(uploadError);
     alert("Gagal upload foto.");
     return;
   }
@@ -114,60 +116,60 @@ async function submitAbsen() {
 function showTarikData() {
   const html = `
     <h3>Tarik Data Absensi</h3>
-    <input type="password" id="tarikPass" placeholder="Masukkan Password" />
-    <input type="date" id="startDate" />
-    <input type="date" id="endDate" />
-    <button onclick="loadData()">Tarik Data</button>
-    <div id="result"></div>
+    <input type="password" id="tarik-password" placeholder="Masukkan Password" />
+    <input type="month" id="bulan" />
+    <button onclick="tarikData()">Tampilkan</button>
+    <div id="tabel-container"></div>
   `;
   document.getElementById('content').innerHTML = html;
 }
 
-async function loadData() {
-  const pass = document.getElementById('tarikPass').value;
-  if (pass !== 'default123') {
-    alert("Password salah!");
+async function tarikData() {
+  const password = document.getElementById('tarik-password').value;
+  const bulan = document.getElementById('bulan').value;
+  if (password !== 'admin123') {
+    alert('Password salah!');
     return;
   }
-  const start = document.getElementById('startDate').value;
-  const end = document.getElementById('endDate').value;
 
-  let { data, error } = await supabase
+  const { data, error } = await supabase
     .from('absensi')
     .select('*')
-    .gte('tanggal', start)
-    .lte('tanggal', end);
+    .like('tanggal', `${bulan}%`)
+    .order('tanggal', { ascending: true });
 
   if (error) {
-    alert("Gagal menarik data");
+    alert('Gagal mengambil data');
     return;
   }
 
-  let table = `<table border='1'><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>`;
-  data.forEach(row => {
-    const url = supabase.storage.from('foto-absen').getPublicUrl(row.foto_url).data.publicUrl;
-    table += `<tr>
-      <td>${row.tanggal}</td>
-      <td>${row.jam}</td>
-      <td>${row.jabatan}</td>
-      <td>${row.nama}</td>
-      <td>${row.lat}</td>
-      <td>${row.lon}</td>
-      <td><a href="${url}" target="_blank">Lihat Foto</a></td>
+  let html = `<table border="1" cellpadding="4" cellspacing="0">
+    <tr>
+      <th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th>
     </tr>`;
+  data.forEach(row => {
+    html += `
+      <tr>
+        <td>${row.tanggal}</td>
+        <td>${row.jam}</td>
+        <td>${row.jabatan}</td>
+        <td>${row.nama}</td>
+        <td>${row.lat}</td>
+        <td>${row.lon}</td>
+        <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/foto-absen/${row.foto_url}" target="_blank">Lihat Foto</a></td>
+      </tr>`;
   });
-  table += '</table>';
-  table += `<button onclick="exportTableToExcel('result')">Export ke Excel</button>`;
+  html += '</table><br><button onclick="exportToExcel()">Export ke Excel</button>';
 
-  document.getElementById('result').innerHTML = table;
+  document.getElementById('tabel-container').innerHTML = html;
 }
 
-function exportTableToExcel(elId) {
-  const table = document.getElementById(elId).innerHTML;
-  const html = `<!DOCTYPE html><html><head><meta charset='UTF-8'></head><body>${table}</body></html>`;
-  const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'absensi.xls';
-  a.click();
+function exportToExcel() {
+  const table = document.querySelector("table");
+  const html = table.outerHTML;
+  const url = 'data:application/vnd.ms-excel,' + encodeURIComponent(html);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'absensi.xls';
+  link.click();
 }
