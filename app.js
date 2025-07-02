@@ -1,14 +1,12 @@
-// ====== app.js ======
+// ===== app.js =====
 
 // Inisialisasi Supabase
 const SUPABASE_URL = 'https://ejpdrxpvdvdzrlvepixs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGRyeHB2ZHZkenJsdmVwaXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0MzEwMjEsImV4cCI6MjA2NzAwNzAyMX0.iCj-Glpi3aLdkXtx7sWxgCMtWGCoJMGrbiUi4Z9bKec';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Koordinat akan diisi setelah getLocation()
 let currentCoords = { lat: null, lon: null };
 
-// ==== Absen Masuk ====
 function showAbsen() {
   const html = `
     <h3>Form Absen Masuk</h3>
@@ -113,7 +111,6 @@ async function submitAbsen() {
   }
 }
 
-// ==== Tarik Data ====
 function showTarikData() {
   const html = `
     <h3>Tarik Data Absensi</h3>
