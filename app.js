@@ -19,14 +19,13 @@ function showAbsen() {
     <input type="text" id="nama" placeholder="Nama Anda" />
     <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto()" />
     <img id="preview" src="" alt="Preview" style="max-width: 100px; display:block;" />
-    <div id="map" style="height: 200px;"></div>
+    <div id="map" style="height: 200px; margin-top:10px;"></div>
     <button onclick="submitAbsen()">Kirim</button>
   `;
   document.getElementById('content').innerHTML = html;
 
   const now = new Date();
-  const tanggalStr = now.toISOString().split('T')[0];
-  document.getElementById('tanggal').value = tanggalStr;
+  document.getElementById('tanggal').value = now.toISOString().split('T')[0];
   document.getElementById('jam').value = now.toTimeString().split(' ')[0];
 
   getLocation(true);
@@ -67,6 +66,11 @@ function previewFoto() {
 }
 
 async function submitAbsen() {
+  if (!currentCoords.lat || !currentCoords.lon) {
+    alert("Lokasi belum terdeteksi. Mohon tunggu sebentar dan pastikan GPS aktif.");
+    return;
+  }
+
   const tanggal = document.getElementById('tanggal').value;
   const jam = document.getElementById('jam').value;
   const jabatan = document.getElementById('jabatan').value;
@@ -80,13 +84,10 @@ async function submitAbsen() {
 
   const fileExt = fotoFile.name.split('.').pop();
   const fileName = `${Date.now()}.${fileExt}`;
-  const folder = tanggal; // Format: 2025-07-02
+  const folder = tanggal;
   const filePath = `${folder}/${fileName}`;
 
-  const { error: uploadError } = await supabase.storage
-    .from('foto-absen')
-    .upload(filePath, fotoFile);
-
+  const { error: uploadError } = await supabase.storage.from('foto-absen').upload(filePath, fotoFile);
   if (uploadError) {
     console.error(uploadError);
     alert("Gagal upload foto.");
@@ -100,76 +101,73 @@ async function submitAbsen() {
     nama,
     lat: currentCoords.lat,
     lon: currentCoords.lon,
-    foto_url: filePath,
+    foto_url: filePath
   }]);
 
   if (insertError) {
-    alert("Gagal menyimpan data absensi.");
     console.error(insertError);
+    alert("Gagal menyimpan absensi.");
   } else {
     alert("Absen berhasil!");
-    showAbsen(); // Reset form
+    showAbsen();
   }
 }
-
 
 function showTarikData() {
   const html = `
     <h3>Tarik Data Absensi</h3>
-    <input type="password" id="tarik-password" placeholder="Masukkan Password" />
+    <input type="password" id="adminPass" placeholder="Masukkan Password" />
     <input type="month" id="bulan" />
     <button onclick="tarikData()">Tampilkan</button>
-    <div id="tabel-container"></div>
+    <div id="tabel"></div>
   `;
   document.getElementById('content').innerHTML = html;
 }
 
 async function tarikData() {
-  const password = document.getElementById('tarik-password').value;
+  const pass = document.getElementById('adminPass').value;
   const bulan = document.getElementById('bulan').value;
-  if (password !== 'admin123') {
-    alert('Password salah!');
+  if (pass !== 'admin123') {
+    alert("Password salah.");
     return;
   }
-
-  const { data, error } = await supabase
-    .from('absensi')
+  if (!bulan) {
+    alert("Pilih bulan.");
+    return;
+  }
+  const { data, error } = await supabase.from('absensi')
     .select('*')
-    .like('tanggal', `${bulan}%`)
-    .order('tanggal', { ascending: true });
-
+    .ilike('tanggal', `${bulan}%`);
   if (error) {
-    alert('Gagal mengambil data');
+    alert("Gagal tarik data.");
     return;
   }
 
-  let html = `<table border="1" cellpadding="4" cellspacing="0">
-    <tr>
-      <th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th>
-    </tr>`;
+  let html = '<table border="1"><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>';
   data.forEach(row => {
-    html += `
-      <tr>
-        <td>${row.tanggal}</td>
-        <td>${row.jam}</td>
-        <td>${row.jabatan}</td>
-        <td>${row.nama}</td>
-        <td>${row.lat}</td>
-        <td>${row.lon}</td>
-        <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/foto-absen/${row.foto_url}" target="_blank">Lihat Foto</a></td>
-      </tr>`;
+    html += `<tr>
+      <td>${row.tanggal}</td>
+      <td>${row.jam}</td>
+      <td>${row.jabatan}</td>
+      <td>${row.nama}</td>
+      <td>${row.lat}</td>
+      <td>${row.lon}</td>
+      <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/foto-absen/${row.foto_url}" target="_blank">Lihat</a></td>
+    </tr>`;
   });
   html += '</table><br><button onclick="exportToExcel()">Export ke Excel</button>';
-
-  document.getElementById('tabel-container').innerHTML = html;
+  document.getElementById('tabel').innerHTML = html;
 }
 
 function exportToExcel() {
-  const table = document.querySelector("table");
-  const html = table.outerHTML;
-  const url = 'data:application/vnd.ms-excel,' + encodeURIComponent(html);
+  const table = document.querySelector('#tabel table');
+  let html = table.outerHTML;
+  const uri = 'data:application/vnd.ms-excel;base64,';
+  const template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
+    '<head><meta charset="UTF-8"></head><body>' + html + '</body></html>';
+  const base64 = s => window.btoa(unescape(encodeURIComponent(s)));
   const link = document.createElement('a');
-  link.href = url;
-  link.download = 'absensi.xls';
+  link.href = uri + base64(template);
+  link.download = 'data-absensi.xls';
   link.click();
 }
