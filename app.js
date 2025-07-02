@@ -109,3 +109,72 @@ async function submitAbsen() {
     showAbsen();
   }
 }
+
+function showTarikData() {
+  const html = `
+    <h3>Tarik Data Absensi</h3>
+    <input type="password" id="adminpass" placeholder="Masukkan Password" />
+    <input type="month" id="bulan" />
+    <button onclick="tarikData()">Tampilkan</button>
+    <div id="tabel"></div>
+  `;
+  document.getElementById('content').innerHTML = html;
+}
+
+async function tarikData() {
+  const password = document.getElementById('adminpass').value;
+  const bulan = document.getElementById('bulan').value;
+
+  if (password !== 'admin123') {
+    alert("Password salah");
+    return;
+  }
+
+  const [year, month] = bulan.split('-');
+  const start = `${year}-${month}-01`;
+  const end = `${year}-${month}-31`;
+
+  const { data, error } = await supabase
+    .from('absensi')
+    .select('*')
+    .gte('tanggal', start)
+    .lte('tanggal', end)
+    .order('tanggal', { ascending: true });
+
+  if (error) {
+    alert("Gagal tarik data");
+    return;
+  }
+
+  let table = `<table border="1"><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>`;
+  data.forEach(row => {
+    table += `<tr>
+      <td>${row.tanggal}</td>
+      <td>${row.jam}</td>
+      <td>${row.jabatan}</td>
+      <td>${row.nama}</td>
+      <td>${row.lat}</td>
+      <td>${row.lon}</td>
+      <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/absensi-foto/${row.foto_url}" target="_blank">Lihat</a></td>
+    </tr>`;
+  });
+  table += '</table><br><button onclick="exportToExcel()">Export ke Excel</button>';
+
+  document.getElementById('tabel').innerHTML = table;
+}
+
+function exportToExcel() {
+  const table = document.querySelector('#tabel table');
+  const rows = Array.from(table.querySelectorAll('tr')).map(row =>
+    Array.from(row.querySelectorAll('th, td')).map(cell => cell.innerText)
+  );
+
+  let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", "data_absensi.csv");
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
