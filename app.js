@@ -14,8 +14,8 @@ function showAbsen() {
     <input type="text" id="jam" readonly />
     <select id="jabatan">
       <option value="">Pilih Jabatan</option>
-      <option value="Manager">Manager</option>
-      <option value="Sales">Sales</option>
+      <option value="Tulip">Tulip</option>
+      <option value="Orchid">Orchid</option>
     </select>
     <input type="text" id="nama" placeholder="Nama Anda" />
     <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto()" />
