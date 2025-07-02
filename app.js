@@ -18,7 +18,7 @@ function showAbsen() {
     </select>
     <input type="text" id="nama" placeholder="Nama Anda" />
     <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto()" />
-    <img id="preview" src="" alt="Preview" style="max-width: 100px; display:block;" />
+    <img id="preview" src="" alt="Preview" style="max-width: 100px; display:block; margin-top:10px;" />
     <div id="map" style="height: 200px; margin-top:10px;"></div>
     <button onclick="submitAbsen()">Kirim</button>
   `;
@@ -84,8 +84,7 @@ async function submitAbsen() {
 
   const fileExt = fotoFile.name.split('.').pop();
   const fileName = `${Date.now()}.${fileExt}`;
-  const folder = tanggal;
-  const filePath = `${folder}/${fileName}`;
+  const filePath = `foto-absen/${tanggal}/${fileName}`;
 
   const { error: uploadError } = await supabase.storage.from('foto-absen').upload(filePath, fotoFile);
   if (uploadError) {
@@ -105,7 +104,6 @@ async function submitAbsen() {
   }]);
 
   if (insertError) {
-    console.error(insertError);
     alert("Gagal menyimpan absensi.");
   } else {
     alert("Absen berhasil!");
@@ -116,58 +114,59 @@ async function submitAbsen() {
 function showTarikData() {
   const html = `
     <h3>Tarik Data Absensi</h3>
-    <input type="password" id="adminPass" placeholder="Masukkan Password" />
+    <input type="password" id="password" placeholder="Password" />
     <input type="month" id="bulan" />
     <button onclick="tarikData()">Tampilkan</button>
-    <div id="tabel"></div>
+    <div id="hasil"></div>
   `;
   document.getElementById('content').innerHTML = html;
 }
 
 async function tarikData() {
-  const pass = document.getElementById('adminPass').value;
-  const bulan = document.getElementById('bulan').value;
+  const pass = document.getElementById('password').value;
   if (pass !== 'admin123') {
-    alert("Password salah.");
+    alert("Password salah");
     return;
   }
+  const bulan = document.getElementById('bulan').value;
   if (!bulan) {
-    alert("Pilih bulan.");
-    return;
-  }
-  const { data, error } = await supabase.from('absensi')
-    .select('*')
-    .ilike('tanggal', `${bulan}%`);
-  if (error) {
-    alert("Gagal tarik data.");
+    alert("Pilih bulan terlebih dahulu.");
     return;
   }
 
-  let html = '<table border="1"><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>';
+  const { data, error } = await supabase.from('absensi')
+    .select('*')
+    .like('tanggal', `${bulan}%`);
+
+  if (error) {
+    alert("Gagal mengambil data.");
+    return;
+  }
+
+  let html = `
+    <table border="1" style="border-collapse:collapse; margin-top:10px">
+      <tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Koordinat</th><th>Foto</th></tr>
+  `;
   data.forEach(row => {
     html += `<tr>
       <td>${row.tanggal}</td>
       <td>${row.jam}</td>
       <td>${row.jabatan}</td>
       <td>${row.nama}</td>
-      <td>${row.lat}</td>
-      <td>${row.lon}</td>
-      <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/foto-absen/${row.foto_url}" target="_blank">Lihat</a></td>
+      <td>${row.lat}, ${row.lon}</td>
+      <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/${row.foto_url}" target="_blank">Lihat</a></td>
     </tr>`;
   });
   html += '</table><br><button onclick="exportToExcel()">Export ke Excel</button>';
-  document.getElementById('tabel').innerHTML = html;
+
+  document.getElementById('hasil').innerHTML = html;
 }
 
 function exportToExcel() {
-  const table = document.querySelector('#tabel table');
-  let html = table.outerHTML;
-  const uri = 'data:application/vnd.ms-excel;base64,';
-  const template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">' +
-    '<head><meta charset="UTF-8"></head><body>' + html + '</body></html>';
-  const base64 = s => window.btoa(unescape(encodeURIComponent(s)));
-  const link = document.createElement('a');
-  link.href = uri + base64(template);
-  link.download = 'data-absensi.xls';
-  link.click();
+  const table = document.querySelector("#hasil table");
+  const tableHTML = table.outerHTML.replace(/ /g, '%20');
+  const a = document.createElement('a');
+  a.href = 'data:application/vnd.ms-excel,' + tableHTML;
+  a.download = 'absensi.xls';
+  a.click();
 }
