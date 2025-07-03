@@ -6,27 +6,25 @@ const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentCoords = { lat: null, lon: null };
 
-const namaPerJabatan = {
-  Manager: ["Budi", "Ali", "Andy", "Sinta", "Rina"],
-  Sales: ["Citra", "Dewi", "Elok", "Fajar", "Gilang"]
-};
-
 function showAbsen() {
   const html = `
     <h3>Form Absen Masuk</h3>
     <input type="text" id="tanggal" readonly />
     <input type="text" id="jam" readonly />
-    <select id="jabatan" onchange="loadNama()">
+
+    <select id="jabatan" onchange="updateNamaOptions()">
       <option value="">Pilih Jabatan</option>
       <option value="Manager">Manager</option>
       <option value="Sales">Sales</option>
     </select>
+
     <select id="nama">
       <option value="">Pilih Nama</option>
     </select>
+
     <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto()" />
-    <img id="preview" src="" alt="Preview" style="max-width: 100px; display:block; margin:10px 0;" />
-    <div id="map" style="height: 200px; margin-bottom: 10px;"></div>
+    <img id="preview" src="" alt="Preview" style="max-width: 100px; display:block;" />
+    <div id="map" style="height: 200px; margin-top:10px;"></div>
     <button onclick="submitAbsen()">Kirim</button>
   `;
   document.getElementById('content').innerHTML = html;
@@ -38,17 +36,22 @@ function showAbsen() {
   getLocation(true);
 }
 
-function loadNama() {
+function updateNamaOptions() {
   const jabatan = document.getElementById('jabatan').value;
-  const namaDropdown = document.getElementById('nama');
-  namaDropdown.innerHTML = '<option value="">Pilih Nama</option>';
+  const namaSelect = document.getElementById('nama');
+  namaSelect.innerHTML = '<option value="">Pilih Nama</option>';
 
-  if (namaPerJabatan[jabatan]) {
-    namaPerJabatan[jabatan].forEach(nama => {
-      const opt = document.createElement('option');
-      opt.value = nama;
-      opt.textContent = nama;
-      namaDropdown.appendChild(opt);
+  const namaOptions = {
+    Manager: ['Budi', 'Ali', 'Andy', 'Rina', 'Hana'],
+    Sales: ['Citra', 'Dewi', 'Elok', 'Santi', 'Dian']
+  };
+
+  if (jabatan && namaOptions[jabatan]) {
+    namaOptions[jabatan].forEach(nama => {
+      const option = document.createElement('option');
+      option.value = nama;
+      option.textContent = nama;
+      namaSelect.appendChild(option);
     });
   }
 }
@@ -88,11 +91,6 @@ function previewFoto() {
 }
 
 async function submitAbsen() {
-  if (!currentCoords.lat || !currentCoords.lon) {
-    alert("Lokasi belum terdeteksi. Mohon tunggu sebentar dan pastikan GPS aktif.");
-    return;
-  }
-
   const tanggal = document.getElementById('tanggal').value;
   const jam = document.getElementById('jam').value;
   const jabatan = document.getElementById('jabatan').value;
@@ -104,25 +102,29 @@ async function submitAbsen() {
     return;
   }
 
-  // Cek duplikat
-  const { data: existing, error: errCheck } = await supabase
-    .from('absensi')
-    .select('*')
-    .eq('tanggal', tanggal)
-    .eq('nama', nama);
-
-  if (existing && existing.length > 0) {
-    alert("Anda sudah absen hari ini!");
+  if (!currentCoords.lat || !currentCoords.lon) {
+    alert("Lokasi belum terdeteksi.");
     return;
   }
 
-  const folder = `foto/${tanggal}`;
+  const checkDup = await supabase.from('absensi')
+    .select('*')
+    .eq('nama', nama)
+    .eq('tanggal', tanggal);
+
+  if (checkDup.data.length > 0) {
+    alert("Anda sudah absen hari ini.");
+    return;
+  }
+
+  const folder = tanggal;
   const fileExt = fotoFile.name.split('.').pop();
   const fileName = `${Date.now()}.${fileExt}`;
-  const filePath = `${folder}/${fileName}`;
+  const filePath = `foto-absen/${folder}/${fileName}`;
 
   const { error: uploadError } = await supabase.storage.from('foto-absen').upload(filePath, fotoFile);
   if (uploadError) {
+    console.error(uploadError);
     alert("Gagal upload foto.");
     return;
   }
@@ -148,63 +150,59 @@ async function submitAbsen() {
 function showTarikData() {
   const html = `
     <h3>Tarik Data Absensi</h3>
-    <input type="password" id="tarikPassword" placeholder="Masukkan Password" />
-    <input type="month" id="bulanTarik" />
-    <button onclick="tarikData()">Tarik Data</button>
-    <div id="hasilTarik"></div>
+    <input type="password" id="tarik-password" placeholder="Masukkan Password" />
+    <input type="month" id="tarik-bulan" />
+    <button onclick="prosesTarikData()">Tarik</button>
+    <div id="hasil-tarik"></div>
   `;
   document.getElementById('content').innerHTML = html;
 }
 
-async function tarikData() {
-  const pass = document.getElementById('tarikPassword').value;
-  const bulan = document.getElementById('bulanTarik').value;
-
-  if (pass !== "admin123") {
-    alert("Password salah");
+async function prosesTarikData() {
+  const pass = document.getElementById('tarik-password').value;
+  if (pass !== 'default123') {
+    alert("Password salah.");
     return;
   }
 
-  if (!bulan) {
-    alert("Pilih bulan terlebih dahulu.");
-    return;
-  }
+  const bulan = document.getElementById('tarik-bulan').value;
+  if (!bulan) return;
+  const [year, month] = bulan.split('-');
+  const start = `${year}-${month}-01`;
+  const end = `${year}-${month}-31`;
 
-  const [tahun, bulanAngka] = bulan.split('-');
-  const awal = `${tahun}-${bulanAngka}-01`;
-  const akhir = `${tahun}-${bulanAngka}-31`;
-
-  const { data, error } = await supabase
-    .from('absensi')
+  const { data, error } = await supabase.from('absensi')
     .select('*')
-    .gte('tanggal', awal)
-    .lte('tanggal', akhir);
+    .gte('tanggal', start)
+    .lte('tanggal', end)
+    .order('tanggal');
 
   if (error) {
-    console.log(error);
     alert("Gagal ambil data");
     return;
   }
 
-  if (data.length === 0) {
-    alert("Tidak ada data pada bulan ini.");
-    return;
-  }
-
-  let html = `<table border="1"><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>`;
-  data.forEach(d => {
-    const link = `${SUPABASE_URL}/storage/v1/object/public/foto-absen/${d.foto_url}`;
-    html += `<tr><td>${d.tanggal}</td><td>${d.jam}</td><td>${d.jabatan}</td><td>${d.nama}</td><td>${d.lat}</td><td>${d.lon}</td><td><a href="${link}" target="_blank">Lihat</a></td></tr>`;
+  let html = '<table><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>';
+  data.forEach(row => {
+    html += `<tr>
+      <td>${row.tanggal}</td>
+      <td>${row.jam}</td>
+      <td>${row.jabatan}</td>
+      <td>${row.nama}</td>
+      <td>${row.lat}</td>
+      <td>${row.lon}</td>
+      <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/${row.foto_url}" target="_blank">Lihat</a></td>
+    </tr>`;
   });
-  html += `</table><br><button onclick="exportToXLS(${JSON.stringify(data).replace(/"/g, '&quot;')})">Export ke Excel</button>`;
+  html += '</table><br><button onclick="exportToExcel()">Export ke Excel</button>';
+  document.getElementById('hasil-tarik').innerHTML = html;
 
-  document.getElementById('hasilTarik').innerHTML = html;
+  window.absensiExport = data;
 }
 
-function exportToXLS(jsonData) {
-  const data = JSON.parse(JSON.stringify(jsonData));
-  const ws = XLSX.utils.json_to_sheet(data);
+function exportToExcel() {
+  const ws = XLSX.utils.json_to_sheet(window.absensiExport);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Absensi");
-  XLSX.writeFile(wb, "absensi.xlsx");
+  XLSX.writeFile(wb, "data_absensi.xlsx");
 }
