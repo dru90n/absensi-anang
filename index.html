@@ -8,24 +8,28 @@
   <!-- CSS -->
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-</head>
-<body>
-  <CENTER>
-  <p align=center><img src="https://raw.githubusercontent.com/dru90n/kuis-kepribadian/refs/heads/main/Bgbgbg.png" width="30%"></p>
-  <h2>ABSENSI TALENT</h2>
-  <h6>Pastikan GPS dan Kamera anda aktif</h6>
-  <button onclick="showAbsen()">Absen Masuk</button><font size=1><BR>Untuk Talent<BR>
-  <button onclick="showTarikData()">Tarik Data</button><BR>Khusus Admin<BR></font>
-  <div id="content"></div>
 
-  <!-- JS Library -->
+  <!-- JS Library (pindah ke head supaya non-defer dan load lebih awal) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <center>
+    <p><img src="https://raw.githubusercontent.com/dru90n/kuis-kepribadian/refs/heads/main/Bgbgbg.png" width="30%"></p>
+    <h2>ABSENSI TALENT</h2>
+    <h6>Pastikan GPS dan Kamera anda aktif</h6>
 
-  <!-- Aplikasi -->
-  <script src="app.js" defer></script>
-  </CENTER>
-  <p align=center><font size=2>Coding by dru90n @ 2013 - 2025</font></p>
+    <button onclick="showAbsen()">Absen Masuk</button>
+    <font size="1"><br>Untuk Talent<br>
+    <button onclick="showTarikData()">Tarik Data</button><br>Khusus Admin<br></font>
+
+    <div id="content"></div>
+
+    <p><font size="2">Coding by dru90n @ 2013 - 2025</font></p>
+  </center>
+
+  <!-- Aplikasi (diletakkan terakhir agar semua elemen DOM sudah tersedia) -->
+  <script src="app.js"></script>
 </body>
 </html>
