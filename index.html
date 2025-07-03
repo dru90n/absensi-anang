@@ -8,28 +8,25 @@
   <!-- CSS -->
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
-  <!-- JS Library (pindah ke head supaya non-defer dan load lebih awal) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
   <center>
     <p><img src="https://raw.githubusercontent.com/dru90n/kuis-kepribadian/refs/heads/main/Bgbgbg.png" width="30%"></p>
     <h2>ABSENSI TALENT</h2>
     <h6>Pastikan GPS dan Kamera anda aktif</h6>
-
-    <button onclick="showAbsen()">Absen Masuk</button>
-    <font size="1"><br>Untuk Talent<br>
-    <button onclick="showTarikData()">Tarik Data</button><br>Khusus Admin<br></font>
-
+    <button onclick="showAbsen()">Absen Masuk</button><br><small>Untuk Talent</small><br><br>
+    <button onclick="showTarikData()">Tarik Data</button><br><small>Khusus Admin</small>
     <div id="content"></div>
-
-    <p><font size="2">Coding by dru90n @ 2013 - 2025</font></p>
   </center>
 
-  <!-- Aplikasi (diletakkan terakhir agar semua elemen DOM sudah tersedia) -->
+  <p align="center"><small>Coding by dru90n @ 2013 - 2025</small></p>
+
+  <!-- LIBRARY JS (urutan penting) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <!-- Aplikasi (setelah semua library) -->
   <script src="app.js"></script>
 </body>
 </html>
