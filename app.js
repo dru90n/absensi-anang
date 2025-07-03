@@ -1,211 +1,158 @@
 // ===== app.js =====
 
+// ===== Konfigurasi Supabase =====
 const SUPABASE_URL = 'https://ejpdrxpvdvdzrlvepixs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGRyeHB2ZHZkenJsdmVwaXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0MzEwMjEsImV4cCI6MjA2NzAwNzAyMX0.iCj-Glpi3aLdkXtx7sWxgCMtWGCoJMGrbiUi4Z9bKec';
 const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentCoords = { lat: null, lon: null };
-
+// ===== Data Nama Berdasarkan Jabatan =====
 const namaByJabatan = {
-  Manager: ["Budi", "Ali", "Andy", "Sinta", "Riko"],
-  Sales: ["Citra", "Dewi", "Elok", "Fajar", "Gina"]
+  Manager: ['Budi', 'Ali', 'Andy', 'Sinta', 'Riko'],
+  Sales: ['Citra', 'Dewi', 'Elok', 'Fajar', 'Gina']
 };
 
+let currentCoords = { lat: null, lon: null };
+
+// ===== Fungsi Tampilkan Form Absen =====
 function showAbsen() {
-  const html = `
+  document.getElementById('content').innerHTML = `
     <h3>Form Absen Masuk</h3>
-    <input type="text" id="tanggal" readonly />
-    <input type="text" id="jam" readonly />
-    <select id="jabatan" onchange="populateNama()">
-      <option value="">Pilih Jabatan</option>
-      <option value="Manager">Manager</option>
-      <option value="Sales">Sales</option>
-    </select>
-    <select id="nama">
-      <option value="">Pilih Nama</option>
-    </select>
-    <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto()" />
-    <img id="preview" src="" alt="Preview" style="max-width: 100px; display:block;" />
-    <div id="map" style="height: 200px;"></div>
-    <button onclick="submitAbsen()">Kirim</button>
+    <form id="absenForm">
+      <input type="date" id="tanggal" required /><br>
+      <input type="time" id="jam" required /><br>
+      <select id="jabatan" required onchange="populateNama()">
+        <option value="">Pilih Jabatan</option>
+        ${Object.keys(namaByJabatan).map(j => `<option value="${j}">${j}</option>`).join('')}
+      </select><br>
+      <select id="nama" required>
+        <option value="">Pilih Nama</option>
+      </select><br>
+      <input type="file" id="foto" accept="image/*" required /><br>
+      <img id="preview" class="preview"/><br>
+      <div id="map"></div><br>
+      <button type="submit">Kirim</button>
+    </form>
   `;
-  document.getElementById('content').innerHTML = html;
 
-  const now = new Date();
-  document.getElementById('tanggal').value = now.toISOString().split('T')[0];
-  document.getElementById('jam').value = now.toTimeString().split(' ')[0];
+  document.getElementById("foto").addEventListener("change", function () {
+    const file = this.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = e => document.getElementById("preview").src = e.target.result;
+      reader.readAsDataURL(file);
+    }
+  });
 
-  getLocation(true);
+  navigator.geolocation.getCurrentPosition(pos => {
+    currentCoords = {
+      lat: pos.coords.latitude,
+      lon: pos.coords.longitude
+    };
+    const map = L.map('map').setView([currentCoords.lat, currentCoords.lon], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    L.marker([currentCoords.lat, currentCoords.lon]).addTo(map).bindPopup("Lokasi Anda").openPopup();
+  });
+
+  document.getElementById("absenForm").onsubmit = submitAbsen;
 }
 
+// ===== Fungsi Isi Dropdown Nama =====
 function populateNama() {
   const jabatan = document.getElementById("jabatan").value;
-  const namaDropdown = document.getElementById("nama");
-  namaDropdown.innerHTML = '<option value="">Pilih Nama</option>';
+  const namaSelect = document.getElementById("nama");
+  namaSelect.innerHTML = `<option value="">Pilih Nama</option>`;
   if (namaByJabatan[jabatan]) {
-    namaByJabatan[jabatan].forEach(nama => {
+    namaByJabatan[jabatan].forEach(n => {
       const opt = document.createElement("option");
-      opt.value = nama;
-      opt.textContent = nama;
-      namaDropdown.appendChild(opt);
+      opt.value = n;
+      opt.text = n;
+      namaSelect.appendChild(opt);
     });
   }
 }
 
-function getLocation(showMap = false) {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(pos => {
-      currentCoords.lat = pos.coords.latitude;
-      currentCoords.lon = pos.coords.longitude;
+// ===== Fungsi Kirim Data =====
+async function submitAbsen(e) {
+  e.preventDefault();
+  const tanggal = document.getElementById("tanggal").value;
+  const jam = document.getElementById("jam").value;
+  const jabatan = document.getElementById("jabatan").value;
+  const nama = document.getElementById("nama").value;
+  const fotoFile = document.getElementById("foto").files[0];
+  const lat = currentCoords.lat;
+  const lon = currentCoords.lon;
 
-      if (showMap) {
-        setTimeout(() => {
-          const mapEl = document.getElementById('map');
-          if (!mapEl) return;
-          const map = L.map('map').setView([currentCoords.lat, currentCoords.lon], 16);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-          L.marker([currentCoords.lat, currentCoords.lon]).addTo(map)
-            .bindPopup('Lokasi Anda').openPopup();
-        }, 500);
-      }
-    });
-  } else {
-    alert("Geolocation tidak didukung browser Anda.");
-  }
-}
+  const folder = `foto/${tanggal}`;
+  const filePath = `${folder}/${Date.now()}.jpg`;
 
-function previewFoto() {
-  const file = document.getElementById('foto').files[0];
-  const preview = document.getElementById('preview');
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      preview.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  }
-}
-
-async function submitAbsen() {
-  if (!currentCoords.lat || !currentCoords.lon) {
-    alert("Lokasi belum terdeteksi. Mohon tunggu sebentar dan pastikan GPS aktif.");
-    return;
-  }
-
-  const tanggal = document.getElementById('tanggal').value;
-  const jam = document.getElementById('jam').value;
-  const jabatan = document.getElementById('jabatan').value;
-  const nama = document.getElementById('nama').value;
-  const fotoFile = document.getElementById('foto').files[0];
-
-  if (!jabatan || !nama || !fotoFile) {
-    alert("Semua field wajib diisi.");
-    return;
-  }
-
-  const { data: existing, error: errExist } = await supabase
-    .from('absensi')
-    .select('*')
-    .eq('tanggal', tanggal)
-    .eq('nama', nama);
+  // Cegah double absen
+  const { data: existing, error: checkError } = await supabase
+    .from("absensi")
+    .select("*")
+    .eq("tanggal", tanggal)
+    .eq("nama", nama);
 
   if (existing && existing.length > 0) {
-    alert("Nama ini sudah melakukan absen hari ini.");
+    alert("Nama ini sudah absen pada tanggal tersebut!");
     return;
   }
 
-  const fileExt = fotoFile.name.split('.').pop();
-  const folderName = tanggal;
-  const fileName = `${Date.now()}.${fileExt}`;
-  const filePath = `foto/${folderName}/${fileName}`;
-
-  const { error: uploadError } = await supabase.storage.from('foto-absen').upload(filePath, fotoFile);
+  const { error: uploadError } = await supabase.storage.from("foto-absen").upload(filePath, fotoFile);
   if (uploadError) {
-    console.error(uploadError);
     alert("Gagal upload foto.");
     return;
   }
 
-  const { error: insertError } = await supabase.from('absensi').insert([{
-    tanggal,
-    jam,
-    jabatan,
-    nama,
-    lat: currentCoords.lat,
-    lon: currentCoords.lon,
-    foto_url: filePath
-  }]);
+  const { error: insertError } = await supabase.from("absensi").insert({
+    tanggal, jam, jabatan, nama, lat, lon, foto_url: filePath
+  });
 
   if (insertError) {
-    console.error(insertError);
-    alert("Gagal menyimpan absensi.");
+    alert("Gagal menyimpan data.");
   } else {
     alert("Absen berhasil!");
-    showAbsen();
+    document.getElementById("content").innerHTML = "";
   }
 }
 
+// ===== Fungsi Tarik Data =====
 function showTarikData() {
-  const html = `
-    <h3>Tarik Data Absensi</h3>
-    <input type="password" id="adminPass" placeholder="Masukkan Password Admin" />
-    <input type="month" id="bulanTarik" />
-    <button onclick="getData()">Tarik Data</button>
-    <div id="tabelData"></div>
+  document.getElementById("content").innerHTML = `
+    <h3>Tarik Data</h3>
+    <input type="month" id="filterMonth" />
+    <button onclick="tarikData()">Tampilkan</button>
+    <table border="1" id="dataTable"></table><br>
+    <button onclick="exportExcel()">Export Excel</button>
   `;
-  document.getElementById('content').innerHTML = html;
 }
 
-async function getData() {
-  const password = document.getElementById('adminPass').value;
-  const bulan = document.getElementById('bulanTarik').value;
+async function tarikData() {
+  const month = document.getElementById("filterMonth").value;
+  const [year, m] = month.split("-");
+  const tanggalAwal = `${year}-${m}-01`;
+  const tanggalAkhir = `${year}-${m}-31`;
 
-  if (password !== 'admin123') {
-    alert('Password salah!');
-    return;
-  }
-  if (!bulan) {
-    alert('Masukkan bulan yang valid.');
-    return;
-  }
-
-  const start = `${bulan}-01`;
-  const end = `${bulan}-31`;
   const { data, error } = await supabase
-    .from('absensi')
-    .select('*')
-    .gte('tanggal', start)
-    .lte('tanggal', end);
+    .from("absensi")
+    .select("*")
+    .gte("tanggal", tanggalAwal)
+    .lte("tanggal", tanggalAkhir);
 
   if (error) {
-    console.error(error);
     alert("Gagal ambil data");
     return;
   }
 
-  if (data.length === 0) {
-    document.getElementById('tabelData').innerHTML = "<p>Tidak ada data ditemukan.</p>";
-    return;
-  }
-
-  let table = `<table border='1'><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>`;
+  let html = "<tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>";
   data.forEach(row => {
-    table += `<tr>
-      <td>${row.tanggal}</td>
-      <td>${row.jam}</td>
-      <td>${row.jabatan}</td>
-      <td>${row.nama}</td>
-      <td>${row.lat}</td>
-      <td>${row.lon}</td>
-      <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/foto-absen/${row.foto_url}" target="_blank">Lihat Foto</a></td>
-    </tr>`;
+    const url = supabase.storage.from("foto-absen").getPublicUrl(row.foto_url).data.publicUrl;
+    html += `<tr><td>${row.tanggal}</td><td>${row.jam}</td><td>${row.jabatan}</td><td>${row.nama}</td><td>${row.lat}</td><td>${row.lon}</td><td><img src="${url}" width="50"/></td></tr>`;
   });
-  table += `</table><br><button onclick="exportToExcel()">Export ke Excel</button>`;
-  document.getElementById('tabelData').innerHTML = table;
+  document.getElementById("dataTable").innerHTML = html;
 }
 
-function exportToExcel() {
-  const table = document.querySelector('table');
-  const wb = XLSX.utils.table_to_book(table);
-  XLSX.writeFile(wb, 'Data_Absensi.xlsx');
+function exportExcel() {
+  const table = document.getElementById("dataTable");
+  const wb = XLSX.utils.table_to_book(table, { sheet: "Absensi" });
+  XLSX.writeFile(wb, "data_absensi.xlsx");
 }
