@@ -6,11 +6,20 @@ const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentCoords = { lat: null, lon: null };
 
+const namaByJabatan = {
+  Manager: ['Budi', 'Ali', 'Andy'],
+  Sales: ['Citra', 'Dewi', 'Elok']
+};
+
 function showAbsen() {
+  const now = new Date();
+  const tanggal = now.toISOString().split('T')[0];
+  const jam = now.toTimeString().split(' ')[0];
+
   const html = `
     <h3>Form Absen Masuk</h3>
-    <input type="text" id="tanggal" readonly />
-    <input type="text" id="jam" readonly />
+    <input type="text" id="tanggal" value="${tanggal}" readonly />
+    <input type="text" id="jam" value="${jam}" readonly />
     <select id="jabatan" onchange="updateNamaOptions()">
       <option value="">Pilih Jabatan</option>
       <option value="Manager">Manager</option>
@@ -21,14 +30,10 @@ function showAbsen() {
     </select>
     <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto()" />
     <img id="preview" src="" alt="Preview" style="max-width: 100px; display:block;" />
-    <div id="map" style="height: 200px; margin-top:10px;"></div>
+    <div id="map" style="height: 200px;"></div>
     <button onclick="submitAbsen()">Kirim</button>
   `;
   document.getElementById('content').innerHTML = html;
-
-  const now = new Date();
-  document.getElementById('tanggal').value = now.toISOString().split('T')[0];
-  document.getElementById('jam').value = now.toTimeString().split(' ')[0];
 
   getLocation(true);
 }
@@ -37,20 +42,14 @@ function updateNamaOptions() {
   const jabatan = document.getElementById('jabatan').value;
   const namaSelect = document.getElementById('nama');
   namaSelect.innerHTML = '<option value="">Pilih Nama</option>';
-
-  const namaManager = ['Budi', 'Ali', 'Andy'];
-  const namaSales = ['Citra', 'Dewi', 'Elok'];
-  let list = [];
-
-  if (jabatan === 'Manager') list = namaManager;
-  else if (jabatan === 'Sales') list = namaSales;
-
-  list.forEach(nama => {
-    const opt = document.createElement('option');
-    opt.value = nama;
-    opt.textContent = nama;
-    namaSelect.appendChild(opt);
-  });
+  if (namaByJabatan[jabatan]) {
+    namaByJabatan[jabatan].forEach(nama => {
+      const opt = document.createElement('option');
+      opt.value = nama;
+      opt.textContent = nama;
+      namaSelect.appendChild(opt);
+    });
+  }
 }
 
 function getLocation(showMap = false) {
@@ -61,15 +60,13 @@ function getLocation(showMap = false) {
 
       if (showMap) {
         setTimeout(() => {
-          const mapEl = document.getElementById('map');
-          if (!mapEl) return;
           const map = L.map('map').setView([currentCoords.lat, currentCoords.lon], 16);
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
           L.marker([currentCoords.lat, currentCoords.lon]).addTo(map)
             .bindPopup('Lokasi Anda').openPopup();
         }, 500);
       }
-    });
+    }, () => alert("Gagal mendapatkan lokasi. Pastikan GPS aktif."));
   } else {
     alert("Geolocation tidak didukung browser Anda.");
   }
@@ -99,30 +96,19 @@ async function submitAbsen() {
     return;
   }
 
-  if (!currentCoords.lat || !currentCoords.lon) {
-    alert("Lokasi belum terdeteksi. Mohon tunggu sebentar dan pastikan GPS aktif.");
-    return;
-  }
-
-  // Cek apakah sudah absen hari ini
   const { data: existing, error: checkError } = await supabase
     .from('absensi')
     .select('*')
-    .eq('nama', nama)
-    .eq('tanggal', tanggal);
-
-  if (checkError) {
-    alert("Gagal memeriksa data sebelumnya.");
-    return;
-  }
+    .eq('tanggal', tanggal)
+    .eq('nama', nama);
 
   if (existing.length > 0) {
-    alert("Nama ini sudah absen hari ini.");
+    alert("Anda sudah absen hari ini.");
     return;
   }
 
+  const folder = tanggal;
   const fileExt = fotoFile.name.split('.').pop();
-  const folder = `foto/${tanggal}`;
   const fileName = `${Date.now()}.${fileExt}`;
   const filePath = `${folder}/${fileName}`;
 
@@ -152,35 +138,38 @@ async function submitAbsen() {
   }
 }
 
-async function showTarikData() {
-  const pass = prompt("Masukkan password untuk mengakses data:");
-  if (pass !== "default123") return;
-
+function showTarikData() {
   const html = `
-    <h3>Tarik Data Absensi</h3>
-    <label>Dari Tanggal: <input type="date" id="dari" /></label>
-    <label>Sampai Tanggal: <input type="date" id="sampai" /></label>
+    <h3>Tarik Data</h3>
+    <input type="password" id="tarikPassword" placeholder="Masukkan Password" />
+    <input type="month" id="bulan" />
     <button onclick="tarikData()">Tarik</button>
-    <table border="1" id="tabelData" style="margin-top:10px;"></table>
-    <button onclick="exportXLS()">Export ke XLS</button>
+    <div id="hasil"></div>
   `;
   document.getElementById('content').innerHTML = html;
 }
 
 async function tarikData() {
-  const dari = document.getElementById('dari').value;
-  const sampai = document.getElementById('sampai').value;
-  if (!dari || !sampai) {
-    alert("Isi range tanggal.");
+  const password = document.getElementById('tarikPassword').value;
+  const bulan = document.getElementById('bulan').value;
+  if (password !== 'default123') {
+    alert("Password salah");
     return;
   }
+  if (!bulan) {
+    alert("Masukkan bulan.");
+    return;
+  }
+
+  const [tahun, bln] = bulan.split('-');
+  const awal = `${tahun}-${bln}-01`;
+  const akhir = `${tahun}-${bln}-31`;
 
   const { data, error } = await supabase
     .from('absensi')
     .select('*')
-    .gte('tanggal', dari)
-    .lte('tanggal', sampai)
-    .order('tanggal', { ascending: true });
+    .gte('tanggal', awal)
+    .lte('tanggal', akhir);
 
   if (error) {
     console.error(error);
@@ -188,9 +177,9 @@ async function tarikData() {
     return;
   }
 
-  let html = `<tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>`;
+  let table = '<table border="1"><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>';
   data.forEach(row => {
-    html += `<tr>
+    table += `<tr>
       <td>${row.tanggal}</td>
       <td>${row.jam}</td>
       <td>${row.jabatan}</td>
@@ -200,12 +189,15 @@ async function tarikData() {
       <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/foto-absen/${row.foto_url}" target="_blank">Lihat</a></td>
     </tr>`;
   });
-
-  document.getElementById('tabelData').innerHTML = html;
+  table += '</table><br><button onclick="exportToExcel()">Export to XLS</button>';
+  document.getElementById('hasil').innerHTML = table;
+  window._tarikData = data;
 }
 
-function exportXLS() {
-  const table = document.getElementById("tabelData");
-  const wb = XLSX.utils.table_to_book(table, { sheet: "Absensi" });
+function exportToExcel() {
+  const data = window._tarikData || [];
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Absensi");
   XLSX.writeFile(wb, "absensi.xlsx");
 }
