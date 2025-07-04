@@ -3,29 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Aplikasi Absensi Staf</title>
-
-  <!-- CSS -->
+  <title>ABSENSI TALENT</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
-  <!-- JS Library (urutan penting!) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
   <center>
-    <p><img src="https://raw.githubusercontent.com/dru90n/kuis-kepribadian/refs/heads/main/Bgbgbg.png" width="30%"></p>
+    <img src="https://raw.githubusercontent.com/dru90n/kuis-kepribadian/refs/heads/main/Bgbgbg.png" width="30%">
     <h2>ABSENSI TALENT</h2>
     <h6>Pastikan GPS dan Kamera anda aktif</h6>
     <button onclick="showAbsen()">Absen Masuk</button><br><small>Untuk Talent</small><br>
-    <button onclick="showTarikData()">Tarik Data</button><br><small>Khusus Admin</small><br>
+    <button onclick="showTarikData()">Tarik Data</button><br><small>Khusus Admin</small><br><br>
     <div id="content"></div>
     <p><small>Coding by dru90n © 2013 - 2025</small></p>
   </center>
 
   <!-- Aplikasi -->
-  <script src="app.js" defer></script>
+  <script src="app.js"></script>
 </body>
 </html>
