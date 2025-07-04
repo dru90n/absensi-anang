@@ -1,26 +1,36 @@
 body {
   font-family: Arial, sans-serif;
+  background-color: #f4f6f9;
+  color: #333;
   margin: 0;
   padding: 20px;
 }
 
-form {
-  margin-top: 20px;
-}
-
 input, select, button {
-  margin: 5px 0;
+  margin: 5px;
   padding: 8px;
-  width: 100%;
+  width: 90%;
   max-width: 300px;
 }
 
-#map {
-  height: 200px;
-  margin-top: 10px;
+button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  cursor: pointer;
 }
 
-img.preview {
-  width: 100px;
-  margin-top: 10px;
+button:hover {
+  background-color: #0056b3;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 100%;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
 }
