@@ -3,7 +3,8 @@
 // Supabase Setup
 const SUPABASE_URL = 'https://ejpdrxpvdvdzrlvepixs.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGRyeHB2ZHZkenJsdmVwaXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0MzEwMjEsImV4cCI6MjA2NzAwNzAyMX0.iCj-Glpi3aLdkXtx7sWxgCMtWGCoJMGrbiUi4Z9bKec';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const { createClient } = supabase;
+const client = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Koordinat Global
 let currentCoords = { lat: null, lon: null };
@@ -75,16 +76,16 @@ async function submitAbsen() {
   const fotoFile = document.getElementById("foto").files[0];
   if (!tanggal || !jam || !jabatan || !nama || !fotoFile) return alert("Isi semua field!");
 
-  const { data: existing } = await supabase.from("absensi").select("*").eq("tanggal", tanggal).eq("nama", nama);
+  const { data: existing } = await client.from("absensi").select("*").eq("tanggal", tanggal).eq("nama", nama);
   if (existing.length > 0) return alert("Sudah absen hari ini.");
 
   const folder = `foto-absen/${tanggal}`;
   const filename = `${Date.now()}.jpg`;
-  const { error: uploadError } = await supabase.storage.from("foto-absen").upload(`${tanggal}/${filename}`, fotoFile);
+  const { error: uploadError } = await client.storage.from("foto-absen").upload(`${tanggal}/${filename}`, fotoFile);
   if (uploadError) return alert("Gagal upload foto.");
 
   const foto_url = `${folder}/${filename}`;
-  const { error } = await supabase.from("absensi").insert([{ tanggal, jam, jabatan, nama, lat: currentCoords.lat, lon: currentCoords.lon, foto_url }]);
+  const { error } = await client.from("absensi").insert([{ tanggal, jam, jabatan, nama, lat: currentCoords.lat, lon: currentCoords.lon, foto_url }]);
   if (error) return alert("Gagal menyimpan data.");
 
   alert("Absen berhasil!");
@@ -108,7 +109,7 @@ function showTarikData() {
 async function tarikData() {
   const start = document.getElementById("start").value;
   const end = document.getElementById("end").value;
-  const { data, error } = await supabase.from("absensi").select("*").gte("tanggal", start).lte("tanggal", end);
+  const { data, error } = await client.from("absensi").select("*").gte("tanggal", start).lte("tanggal", end);
   if (error) return alert("Gagal ambil data");
 
   let html = `<table border=1><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>`;
