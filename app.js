@@ -1,200 +1,138 @@
-// Inisialisasi Supabase
-const SUPABASE_URL = "https://zbunmfsedqalvvadwgkk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpidW5tZnNlZHFhbHZ2YWR3Z2trIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEyNjE2NTUsImV4cCI6MjA2NjgzNzY1NX0.wUEGv5FavNSQT3iNlo6WnW_d3TcDVxRTx8sI6xD-wxQ";
+// ===== Supabase Config =====
+const SUPABASE_URL = 'https://ejpdrxpvdvdzrlvepixs.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqcGRyeHB2ZHZkenJsdmVwaXhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0MzEwMjEsImV4cCI6MjA2NzAwNzAyMX0.iCj-Glpi3aLdkXtx7sWxgCMtWGCoJMGrbiUi4Z9bKec';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Login password
-function checkPassword() {
-  const pass = document.getElementById('password-input').value;
-  if (pass === 'default123') {
-    document.getElementById('login-section').style.display = 'none';
-    document.getElementById('menu-section').style.display = 'block';
-  } else {
-    alert('Password salah!');
-  }
-}
+// ===== Global =====
+let currentCoords = { lat: null, lon: null };
 
-// === NEW ORDER ===
-function showNewOrder() {
-  const html = `
-    <h3>New Order</h3>
-    <input type="text" id="order_number" placeholder="Nomor Order" readonly />
-    <input type="date" id="order_date" />
+const namaByJabatan = {
+  Manager: ["Budi", "Ali", "Andy", "Sinta", "Riko"],
+  Sales: ["Citra", "Dewi", "Elok", "Fajar", "Gina"]
+};
 
-    <select id="room_category" onchange="updateRoomOptions()">
-      <option value="">Pilih Kategori</option>
-      <option value="Tulip">Tulip</option>
-      <option value="Orchid">Orchid</option>
-    </select>
-
-    <input type="text" id="room_name" placeholder="Nama Ruang" />
-    <input type="number" id="vouchers" placeholder="Jumlah Voucher" oninput="updateRoomOptions()" />
-    <input type="number" id="extra_hours" placeholder="Jam Tambahan" oninput="updateRoomOptions()" />
-    <input type="text" id="total_bill" placeholder="Total Bill" readonly />
-
-    <select id="payment_method">
-      <option value="Cash">Cash</option>
-      <option value="Transfer">Transfer</option>
-      <option value="Pay Later">Pay Later</option>
-    </select>
-
-    <button onclick="simpanOrder()">Simpan</button>
+// ===== Absen Form =====
+function showAbsen() {
+  document.getElementById("content").innerHTML = `
+    <h3>Form Absen Masuk</h3>
+    <input type="date" id="tanggal" value="${new Date().toISOString().slice(0, 10)}"><br>
+    <input type="time" id="jam" value="${new Date().toTimeString().slice(0, 8)}"><br>
+    <select id="jabatan" onchange="populateNama()">
+      <option value="">Pilih Jabatan</option>
+      ${Object.keys(namaByJabatan).map(j => `<option value="${j}">${j}</option>`).join("")}
+    </select><br>
+    <select id="nama">
+      <option value="">Pilih Nama</option>
+    </select><br>
+    <input type="file" id="foto" accept="image/*" capture="environment" onchange="previewFoto(event)"><br>
+    <img id="preview" width="150"><br>
+    <div id="map" style="height: 200px;"></div><br>
+    <button onclick="submitAbsen()">Kirim</button>
   `;
-  document.getElementById('content-section').innerHTML = html;
-  document.getElementById('order_number').value = 'ORD' + Date.now();
-  document.getElementById('order_date').valueAsDate = new Date();
+  initMap();
 }
 
-function updateRoomOptions() {
-  const category = document.getElementById('room_category').value;
-  const v = parseInt(document.getElementById('vouchers')?.value || 0);
-  const h = parseInt(document.getElementById('extra_hours')?.value || 0);
-  const totalInput = document.getElementById('total_bill');
-
-  let total = 0;
-  if (category === 'Tulip') {
-    total = v * 1000 + h * 350;
-  } else if (category === 'Orchid') {
-    total = v * 750 + h * 250;
-  }
-
-  if (totalInput) {
-    totalInput.value = total;
+function populateNama() {
+  const jabatan = document.getElementById("jabatan").value;
+  const namaSelect = document.getElementById("nama");
+  namaSelect.innerHTML = `<option value="">Pilih Nama</option>`;
+  if (namaByJabatan[jabatan]) {
+    namaByJabatan[jabatan].forEach(n => {
+      namaSelect.innerHTML += `<option value="${n}">${n}</option>`;
+    });
   }
 }
 
-async function simpanOrder() {
-  const orderNumber = document.getElementById("order_number").value;
-  const orderDate = document.getElementById("order_date").value;
-  const roomCategory = document.getElementById("room_category").value;
-  const roomName = document.getElementById("room_name").value;
-  const vouchers = parseInt(document.getElementById("vouchers").value || 0);
-  const extraHours = parseInt(document.getElementById("extra_hours").value || 0);
-  const totalBill = parseFloat(document.getElementById("total_bill").value || 0);
-  const paymentMethod = document.getElementById("payment_method").value;
-  const paymentStatus = paymentMethod === "Pay Later" ? "Belum Lunas" : "Lunas";
-
-  const { data, error } = await supabase.from("orders").insert([
-    {
-      order_number: orderNumber,
-      order_date: orderDate,
-      room_category: roomCategory,
-      room_name: roomName,
-      vouchers,
-      extra_hours: extraHours,
-      total_bill: totalBill,
-      payment_method: paymentMethod,
-      payment_status: paymentStatus,
-      created_at: new Date().toISOString()
-    }
-  ]);
-
-  if (error) {
-    alert("Gagal menyimpan: " + error.message);
-    console.error(error);
-  } else {
-    alert("Order berhasil disimpan!");
-    document.getElementById("content-section").innerHTML = "";
-  }
+function previewFoto(event) {
+  const reader = new FileReader();
+  reader.onload = () => document.getElementById("preview").src = reader.result;
+  reader.readAsDataURL(event.target.files[0]);
 }
 
-// === EDIT ORDER ===
-function showEditOrder() {
-  const html = `
-    <h3>Edit Order</h3>
-    <input type="text" id="search_order" placeholder="Masukkan Nomor Order atau Tanggal (YYYY-MM-DD)" />
-    <button onclick="cariOrder()">Cari</button>
-    <div id="edit-result"></div>
-  `;
-  document.getElementById('content-section').innerHTML = html;
+function initMap() {
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    currentCoords = { lat, lon };
+    const map = L.map('map').setView([lat, lon], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    L.marker([lat, lon]).addTo(map).bindPopup("Lokasi Anda").openPopup();
+  }, () => alert("Gagal mengambil lokasi"));
 }
 
-async function cariOrder() {
-  const keyword = document.getElementById("search_order").value.trim();
-  if (!keyword) return alert("Masukkan nomor order atau tanggal");
+async function submitAbsen() {
+  const tanggal = document.getElementById("tanggal").value;
+  const jam = document.getElementById("jam").value;
+  const jabatan = document.getElementById("jabatan").value;
+  const nama = document.getElementById("nama").value;
+  const fotoFile = document.getElementById("foto").files[0];
 
-  let { data, error } = await supabase
-    .from("orders")
-    .select("*")
-    .or(`order_number.eq.${keyword},order_date.eq.${keyword}`);
+  if (!tanggal || !jam || !jabatan || !nama || !fotoFile)
+    return alert("Isi semua field!");
 
-  if (error || !data.length) {
-    document.getElementById("edit-result").innerHTML = "Order tidak ditemukan.";
-    return;
-  }
+  const { data: existing } = await supabase.from("absensi")
+    .select("*").eq("tanggal", tanggal).eq("nama", nama);
 
-  const order = data[0];
-  const html = `
-    <p><b>Nomor:</b> ${order.order_number}</p>
-    <p><b>Tanggal:</b> ${order.order_date}</p>
-    <p><b>Ruang:</b> ${order.room_name}</p>
-    <p><b>Status Pembayaran:</b> ${order.payment_status}</p>
+  if (existing.length > 0)
+    return alert("Sudah absen hari ini!");
 
-    <select id="new_payment_status">
-      <option value="Lunas" ${order.payment_status === "Lunas" ? "selected" : ""}>Lunas</option>
-      <option value="Belum Lunas" ${order.payment_status === "Belum Lunas" ? "selected" : ""}>Belum Lunas</option>
-    </select>
+  const filename = `${Date.now()}.jpg`;
+  const { error: uploadError } = await supabase.storage
+    .from("foto-absen")
+    .upload(`${tanggal}/${filename}`, fotoFile);
 
-    <button onclick="updateOrder('${order.order_number}')">Simpan Perubahan</button>
-  `;
-  document.getElementById("edit-result").innerHTML = html;
+  if (uploadError) return alert("Gagal upload foto.");
+
+  const foto_url = `foto-absen/${tanggal}/${filename}`;
+  const { error } = await supabase.from("absensi").insert([{
+    tanggal, jam, jabatan, nama,
+    lat: currentCoords.lat, lon: currentCoords.lon,
+    foto_url
+  }]);
+
+  if (error) return alert("Gagal menyimpan data.");
+  alert("Absen berhasil!");
+  showAbsen();
 }
 
-async function updateOrder(order_number) {
-  const newStatus = document.getElementById("new_payment_status").value;
-
-  const { error } = await supabase
-    .from("orders")
-    .update({ payment_status: newStatus })
-    .eq("order_number", order_number);
-
-  if (error) {
-    alert("Gagal update: " + error.message);
-  } else {
-    alert("Berhasil diperbarui!");
-    document.getElementById("content-section").innerHTML = "";
-  }
-}
-
-// === TARIK DATA ===
+// ===== Tarik Data =====
 function showTarikData() {
-  const html = `
+  const pw = prompt("Masukkan password admin:");
+  if (pw !== "admin123") return alert("Salah password!");
+
+  document.getElementById("content").innerHTML = `
     <h3>Tarik Data</h3>
-    <label>Dari:</label>
-    <input type="date" id="start_date" />
-    <label>Sampai:</label>
-    <input type="date" id="end_date" />
+    <input type="date" id="start">
+    <input type="date" id="end">
     <button onclick="tarikData()">Tarik</button>
-    <div id="data-result"></div>
+    <div id="tabel"></div>
   `;
-  document.getElementById('content-section').innerHTML = html;
 }
 
 async function tarikData() {
-  const start = document.getElementById("start_date").value;
-  const end = document.getElementById("end_date").value;
+  const start = document.getElementById("start").value;
+  const end = document.getElementById("end").value;
 
-  if (!start || !end) {
-    alert("Lengkapi kedua tanggal");
-    return;
-  }
+  const { data, error } = await supabase.from("absensi")
+    .select("*").gte("tanggal", start).lte("tanggal", end);
 
-  const { data, error } = await supabase
-    .from("orders")
-    .select("*")
-    .gte("order_date", start)
-    .lte("order_date", end);
+  if (error) return alert("Gagal ambil data");
 
-  if (error) {
-    alert("Gagal tarik data: " + error.message);
-    return;
-  }
-
-  let html = `<p>Ditemukan ${data.length} data:</p><ul>`;
+  let html = `<table><tr><th>Tanggal</th><th>Jam</th><th>Jabatan</th><th>Nama</th><th>Lat</th><th>Lon</th><th>Foto</th></tr>`;
   data.forEach(d => {
-    html += `<li><b>${d.order_number}</b> (${d.order_date}) - ${d.room_name} - ${d.total_bill} - ${d.payment_status}</li>`;
+    html += `<tr>
+      <td>${d.tanggal}</td><td>${d.jam}</td><td>${d.jabatan}</td><td>${d.nama}</td>
+      <td>${d.lat}</td><td>${d.lon}</td>
+      <td><a href="https://ejpdrxpvdvdzrlvepixs.supabase.co/storage/v1/object/public/${d.foto_url}" target="_blank">Lihat</a></td>
+    </tr>`;
   });
-  html += `</ul>`;
+  html += `</table><br><button onclick='exportXLS(${JSON.stringify(data)})'>Export XLS</button>`;
+  document.getElementById("tabel").innerHTML = html;
+}
 
-  document.getElementById("data-result").innerHTML = html;
+function exportXLS(data) {
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Absen");
+  XLSX.writeFile(wb, "absensi.xlsx");
 }
